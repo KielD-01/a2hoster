@@ -39,18 +39,16 @@ function initHostRequest(){
 }
 
 function showMenu(){
-	menuItems="1 - Sites List; 2 - Hosts List; 3 - Root checker; 4 - Create new available VHost; Other - Exit"
+	menuItems="1 - Sites List; 2 - Hosts List; 3 - Root checker; 4 - Create new available VHost; 5 - Remove existing Vhost; Other - Exit;"
 	IFS=$';' read -r -a menuItems <<< "$menuItems"
-		
 	menuIndex=1
-	menuItems=$(echo $menuItems | tr ";" " ")
-	for menuItem in $menuItems
-	do	
-		echo $menuIndex") " ${menuItems[$menuIndex-1]} 
-		let menuIndex=menuIndex+1
-	done	
-	
-	echo -e "Select item from list above : "
+
+	while [ $menuIndex -ne ${#menuItems[@]} ]; do
+        echo ${menuIndex}") " ${menuItems[${menuIndex}-1]}
+	    let menuIndex=menuIndex+1
+	done
+
+	echo  "Select item from list above : "
 	read menuItemSelect
 
 	case $menuItemSelect in
@@ -58,6 +56,7 @@ function showMenu(){
 		2)	showList "You have been selected Hosts List" "/etc/apache2/sites-enabled" "4";;
 		3)	checkRoot "--no-exit";;
 		4) 	createNewHost;;
+		5)  removeHost;;
 		*)	exit 0;;
 	esac
 	echo $'\n'
@@ -104,14 +103,14 @@ echo "Installation process has been initialized..."
 echo "Please, be patient"
 
 cd /var/www
-if [ $packageName='' ]; then
+if [ -z "$packageName" ]; then
     echo "Package name not specified. No downloading job."
-    sudo mkdir 755 $projectName
+    sudo mkdir $projectName
 else
 	sudo composer create-project --prefer-dist $packageName $projectName
 	echo -ne '\n'
 fi
-	sudo chmod -R 755 $projectName
+	sudo chmod -R 777 $projectName"/"
 	cd ~
 
 	echo "Creating new Host for $projectName"
@@ -138,9 +137,40 @@ fi
 		invoke-rc.d apache2 restart
 	} &>/dev/null
 
+    # echo "Creating DB $projectName"
+
+    # sed -r 's/.*href="([^"]*)".*/\1/' file | RegExp for changing DB configs
+
+    # sudo mysql -uroot -e "create database '${projectName}'"
+
 	echo "Done! Enjoy :)"
 
 	wantToContinue
 
 }
 
+function removeHost(){
+    echo "Which Vhost You want to delete?"
+    read hostname
+    if [ -z ${hostname} ]; then
+        echo "No hostname specified"
+        wantToContinue
+    else
+    echo "Are You sure to remove vhost ${hostname}?"
+    read sure
+    case ${sure} in
+    1) echo "Removing vhost ${hostname}"
+       cd /etc/apache2/sites-enabled
+       sudo rm ${hostname}.conf
+       cd /etc/
+
+       {
+            sed '/'${hostname}'/d' hosts
+       } > hosts
+
+       echo "VHost is removed successfully";;
+    esac
+    fi
+
+    wantToContinue
+}
