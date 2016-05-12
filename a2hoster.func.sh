@@ -52,7 +52,7 @@ function showMenu(){
 	read menuItemSelect
 
 	case $menuItemSelect in
-		1)	showList "You have been selected Sites/Projects List" "/var/www" "3";;
+		1)	showList 0 "You have been selected Sites/Projects List" "/var/www" "3";;
 		2)	showList "You have been selected Hosts List" "/etc/apache2/sites-enabled" "4";;
 		3)	checkRoot "--no-exit";;
 		4) 	createNewHost;;
@@ -87,7 +87,13 @@ function showList(){
 		let index=index+1
 	done
 
-	wantToContinue	
+    if [ -z $1 ]; then
+	wantToContinue
+	else
+	    case $1 in
+	        0) wantToContinue;
+	    esac
+	fi
 	
 }
 
@@ -98,7 +104,9 @@ read projectName
 echo -e "\e[13mPackage wil be ignored, if not specified\e[0m"
 echo -e "\e[90mEnter package name for composer install :\e[0m"
 read packageName
-
+echo -e "\e[90mEnter DocumentRoot folder \e[0m"
+echo -e "\e[90mRoot directory will be ignored if empty \e[0m"
+read rootFolder
 echo "Installation process has been initialized..."
 echo "Please, be patient"
 
@@ -121,7 +129,11 @@ fi
 		echo "	ServerAdmin admin@$projectName.com"
 		echo "	ServerName $projectName"
 		echo "	ServerAlias www.$projectName"
+		if [ -z "$rootFolder" ]; then
 		echo "	DocumentRoot /var/www/$projectName"
+		else
+		echo "	DocumentRoot /var/www/$projectName/$rootFolder"
+		fi
 		echo "	ErrorLog ${APACHE_LOG_DIR}/error.log"
 		echo "  CustomLog ${APACHE_LOG_DIR}/access.log combined"
 		echo "</VirtualHost>"
@@ -150,7 +162,8 @@ fi
 }
 
 function removeHost(){
-    echo "Which Vhost You want to delete?"
+    echo "Which Vhost You want to delete? Enter hostname"
+    showList 1
     read hostname
     if [ -z ${hostname} ]; then
         echo "No hostname specified"
@@ -164,10 +177,13 @@ function removeHost(){
        sudo rm ${hostname}.conf
        cd /etc/
 
-       {
-            sed '/'${hostname}'/d' hosts
-       } > hosts
-
+        array= sed '/'${hostname}'/d' hosts
+        echo ${#array[@]}
+#       {
+#            sed '/'${hostname}'/d' hosts
+#       } > hosts
+        cd /var/www
+        sudo rm -r ${hostname}
        echo "VHost is removed successfully";;
     esac
     fi
