@@ -18,5 +18,5 @@ sudo php composer-setup.php
 sudo php -r "unlink('composer-setup.php');"
 sudo mv composer.phar /usr/local/bin/composer
 
-sudo chmod 744 /usr/local/bin/a2hoster  >> /dev/null
+sudo chmod 766 /usr/local/bin/a2hoster  >> /dev/null
 echo "Installing complete. Check functionality by running shell with sudo a2hoster"
