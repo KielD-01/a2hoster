@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "Installing a2hoster globally"
-sudo mv a2hoster.sh /usr/local/bin/a2hoster >> /dev/null
-sudo mv a2hoster.func.sh /usr/local/bin/  >> /dev/null
+sudo cp a2hoster.sh /usr/local/bin/a2hoster >> /dev/null
+sudo cp a2hoster.func.sh /usr/local/bin/  >> /dev/null
 
 # Installing server part if not exists
 sudo apt-get install apache2
