@@ -10,6 +10,4 @@ To install A2Hoster globally:
 
 Then, You will be able to run it with:
 
-`sudo a2hoster`
-
-This scripts require SU
+`a2hoster`
