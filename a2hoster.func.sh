@@ -1,39 +1,5 @@
 #!/bin/bash
 
-# ROOT checker
-function checkRoot(){
-    if [[ $EUID -ne 0 ]]; then
-       echo -e "\e[31mThis script requires ROOT/SU\e[0m" 1>&2
-       echo -e "\e[93mRunning as $USER\e[0m"
-       echo "You want to init Root access? [1 - Yes | 2 - No ]"
-
-       read answer
-
-       case $answer in
-        1)	initRoot;;
-        *)	echo -e "\e[31mRoot access not granted. Exit.\e[0m" 
-		exit;;
-       esac
-
-       else
-       echo -e "\e[92mRunning as Root User : $USER\e[0m"
-
-	if [ $1 ]; then
-		case $1 in
-	        "--no-exit") showMenu;;
-	        *) showMenu;;
-		esac
-	fi
-
-    fi
-	
-}
-
-function initRoot(){
-    	sudo su
-	checkRoot
-}
-
 function initHostRequest(){
 	echo ""
 }
@@ -68,7 +34,7 @@ function wantToContinue(){
 	read wantToContinue;
 	case $wantToContinue in
 	1) reset
-	   checkRoot	
+
 	   showMenu;;
 	*) exit;; 
 	esac
@@ -110,20 +76,46 @@ read rootFolder
 echo "Installation process has been initialized..."
 echo "Please, be patient"
 
+sudo chown $USER /etc/hosts
+
+if [ ! -d "/var/www/" ];then
+    sudo mkdir -p /var/www/
+    sudo chown -R $USER /var/www/
+fi
+
 cd /var/www
+
 if [ -z "$packageName" ]; then
     echo "Package name not specified. No downloading job."
-    sudo mkdir $projectName
+    mkdir $projectName
 else
-	sudo composer create-project --prefer-dist $packageName $projectName
-	echo -ne '\n'
-fi
-	sudo chmod -R 777 $projectName"/"
+
+    if grep -Fxq "$projectName" "/etc/hosts" ; then
+        echo "This project already in hosts. Please, choose another name"
+    else
+            if [ ! -d /var/www/$projectName ]; then
+                composer create-project --prefer-dist $packageName $projectName --no-interaction --no-ansi --quiet
+                echo -ne '\n'
+            else
+                echo "Project already exists"
+            fi
+        fi
+    fi
+
 	cd ~
 
 	echo "Creating new Host for $projectName"
+
+	if [ ! -d /etc/apache2/sites-enabled/ ]; then
+	   sudo mkdir -p /etc/apache2/sites-enabled/
+	   sudo chown $USER /etc/apache2/sites-enabled/
+	fi
+
 	newFile="/etc/apache2/sites-enabled/"$projectName".conf"
+
 	sudo touch $newFile
+	sudo chown $USER $newFile
+
 	{
 		echo "<VirtualHost *:80>"
 		echo "	ServerAdmin admin@$projectName.com"
@@ -134,15 +126,16 @@ fi
 		else
 		echo "	DocumentRoot /var/www/$projectName/$rootFolder"
 		fi
-		echo "	ErrorLog ${APACHE_LOG_DIR}/error.log"
-		echo "  CustomLog ${APACHE_LOG_DIR}/access.log combined"
+		echo "	ErrorLog ${APACHE_LOG_DIR}/$projectName.error.log"
+		echo "  CustomLog ${APACHE_LOG_DIR}/$projectName.access.log combined"
 		echo "</VirtualHost>"
 	} > $newFile
 
 	echo "Adding to hosts and processing with Apache"
 	
-		echo "127.0.0.1	$projectName" >> /etc/hosts
-	
+		sudo echo "127.0.0.1	$projectName    # a2hoster - Do NOT Remove this entry" >> /etc/hosts
+		sudo echo "::1	    $projectName    # a2hoster - Do NOT Remove this entry" >> /etc/hosts
+
 	{
 		a2ensite $projectName".conf"
 		invoke-rc.d apache2 reload

@@ -3,5 +3,4 @@
 reset
 source  a2hoster.func.sh
 
-checkRoot
 showMenu
