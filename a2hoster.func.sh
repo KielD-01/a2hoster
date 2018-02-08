@@ -39,25 +39,24 @@ function initHostRequest(){
 }
 
 function showMenu(){
-	menuItems="1 - Sites List; 2 - Hosts List; 3 - Root checker; 4 - Create new available VHost; Other - Exit"
+	menuItems="1 - Sites List; 2 - Hosts List; 3 - Root checker; 4 - Create new available VHost; 5 - Remove existing Vhost; Other - Exit;"
 	IFS=$';' read -r -a menuItems <<< "$menuItems"
-		
 	menuIndex=1
-	menuItems=$(echo $menuItems | tr ";" " ")
-	for menuItem in $menuItems
-	do	
-		echo $menuIndex") " ${menuItems[$menuIndex-1]} 
-		let menuIndex=menuIndex+1
-	done	
-	
-	echo -e "Select item from list above : "
+
+	while [ $menuIndex -ne ${#menuItems[@]} ]; do
+        echo ${menuIndex}") " ${menuItems[${menuIndex}-1]}
+	    let menuIndex=menuIndex+1
+	done
+
+	echo  "Select item from list above : "
 	read menuItemSelect
 
 	case $menuItemSelect in
-		1)	showList "You have been selected Sites/Projects List" "/var/www" "3";;
+		1)	showList 0 "You have been selected Sites/Projects List" "/var/www" "3";;
 		2)	showList "You have been selected Hosts List" "/etc/apache2/sites-enabled" "4";;
 		3)	checkRoot "--no-exit";;
 		4) 	createNewHost;;
+		5)  removeHost;;
 		*)	exit 0;;
 	esac
 	echo $'\n'
@@ -88,7 +87,13 @@ function showList(){
 		let index=index+1
 	done
 
-	wantToContinue	
+    if [ -z $1 ]; then
+	wantToContinue
+	else
+	    case $1 in
+	        0) wantToContinue;
+	    esac
+	fi
 	
 }
 
@@ -99,19 +104,21 @@ read projectName
 echo -e "\e[13mPackage wil be ignored, if not specified\e[0m"
 echo -e "\e[90mEnter package name for composer install :\e[0m"
 read packageName
-
+echo -e "\e[90mEnter DocumentRoot folder \e[0m"
+echo -e "\e[90mRoot directory will be ignored if empty \e[0m"
+read rootFolder
 echo "Installation process has been initialized..."
 echo "Please, be patient"
 
 cd /var/www
-if [ $packageName='' ]; then
+if [ -z "$packageName" ]; then
     echo "Package name not specified. No downloading job."
-    sudo mkdir 755 $projectName
+    sudo mkdir $projectName
 else
 	sudo composer create-project --prefer-dist $packageName $projectName
 	echo -ne '\n'
 fi
-	sudo chmod -R 755 $projectName
+	sudo chmod -R 777 $projectName"/"
 	cd ~
 
 	echo "Creating new Host for $projectName"
@@ -122,7 +129,11 @@ fi
 		echo "	ServerAdmin admin@$projectName.com"
 		echo "	ServerName $projectName"
 		echo "	ServerAlias www.$projectName"
+		if [ -z "$rootFolder" ]; then
 		echo "	DocumentRoot /var/www/$projectName"
+		else
+		echo "	DocumentRoot /var/www/$projectName/$rootFolder"
+		fi
 		echo "	ErrorLog ${APACHE_LOG_DIR}/error.log"
 		echo "  CustomLog ${APACHE_LOG_DIR}/access.log combined"
 		echo "</VirtualHost>"
@@ -138,9 +149,44 @@ fi
 		invoke-rc.d apache2 restart
 	} &>/dev/null
 
+    # echo "Creating DB $projectName"
+
+    # sed -r 's/.*href="([^"]*)".*/\1/' file | RegExp for changing DB configs
+
+    # sudo mysql -uroot -e "create database '${projectName}'"
+
 	echo "Done! Enjoy :)"
 
 	wantToContinue
 
 }
 
+function removeHost(){
+    echo "Which Vhost You want to delete? Enter hostname"
+    showList 1
+    read hostname
+    if [ -z ${hostname} ]; then
+        echo "No hostname specified"
+        wantToContinue
+    else
+    echo "Are You sure to remove vhost ${hostname}?"
+    read sure
+    case ${sure} in
+    1) echo "Removing vhost ${hostname}"
+       cd /etc/apache2/sites-enabled
+       sudo rm ${hostname}.conf
+       cd /etc/
+
+        array= sed '/'${hostname}'/d' hosts
+        echo ${#array[@]}
+#       {
+#            sed '/'${hostname}'/d' hosts
+#       } > hosts
+        cd /var/www
+        sudo rm -r ${hostname}
+       echo "VHost is removed successfully";;
+    esac
+    fi
+
+    wantToContinue
+}
